@@ -2,7 +2,6 @@ import express from "express";
 import axios from "axios";
 import cors from 'cors';
 
-
 interface Player {
   name: string;
   category: string;
@@ -37,34 +36,34 @@ const assignPoints = (players: Player[]) => {
 const fetchAndGroupPlayers = async (url: string, roundNum: number) => {
   const resultsByCategory: { [key: string]: any[] } = {};
 
-    const response = await axios.get(url);
-    const subCompetitions = response.data.Competition.SubCompetitions;
+  const response = await axios.get(url);
+  const subCompetitions = response.data.Competition.SubCompetitions;
 
-    subCompetitions.forEach((round: any) => {
-      round.Results.forEach((result: any) => {
-        const { Name, Sum, ClassName, DNF } = result;
+  subCompetitions.forEach((round: any) => {
+    round.Results.forEach((result: any) => {
+      const { Name, Sum, ClassName, DNF } = result;
 
-        const adjustedSum = DNF == 1 ? Sum + 999 : Sum;
+      const adjustedSum = DNF == 1 ? Sum + 999 : Sum;
 
-        if (!resultsByCategory[ClassName]) {
-          resultsByCategory[ClassName] = [];
-        }
+      if (!resultsByCategory[ClassName]) {
+        resultsByCategory[ClassName] = [];
+      }
 
-        const existingPlayer = resultsByCategory[ClassName].find(
-          (player) => player.name === Name
-        );
+      const existingPlayer = resultsByCategory[ClassName].find(
+        (player) => player.name === Name
+      );
 
-        if (existingPlayer) {
-          existingPlayer.roundScore += adjustedSum;
-        } else {
-          resultsByCategory[ClassName].push({
-            name: Name,
-            category: ClassName,
-            roundScore: adjustedSum,
-          });
-        }
-      });
+      if (existingPlayer) {
+        existingPlayer.roundScore += adjustedSum;
+      } else {
+        resultsByCategory[ClassName].push({
+          name: Name,
+          category: ClassName,
+          roundScore: adjustedSum,
+        });
+      }
     });
+  });
 
   Object.keys(resultsByCategory).forEach((category) => {
     const players = resultsByCategory[category];
@@ -87,7 +86,6 @@ const fetchAndProcessResults = async (roundUrls: string[]) => {
 
   return combinedResults;
 };
-
 
 const mergeResults = (combinedResults: any[]) => {
   const resultsByCategory: { [category: string]: any[] } = {};
@@ -160,10 +158,11 @@ const mergeResults = (combinedResults: any[]) => {
   return resultsByCategory;
 };
 
+// Express app
 const app = express();
-
 app.use(cors());
 
+// Define routes
 app.get("/combined-results", async (req, res) => {
   const roundUrls = [
     "https://discgolfmetrix.com/api.php?content=result&id=3154647", // round1
@@ -174,9 +173,7 @@ app.get("/combined-results", async (req, res) => {
 
   try {
     const combinedResults = await fetchAndProcessResults(roundUrls);
-
     const finalResults = mergeResults(combinedResults);
-
     res.json(finalResults);
   } catch (err) {
     console.error(err);
@@ -184,9 +181,5 @@ app.get("/combined-results", async (req, res) => {
   }
 });
 
-
-
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+// Export the express app to be used by Vercel as a serverless function
+export default app;
