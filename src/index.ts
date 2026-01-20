@@ -51,7 +51,8 @@ const normalizeCategoryName = (rawName?: string) => {
     case "mp40":
     case "mixed pro 40+":
     case "pro masters 40+":
-      return "Mixed Pro 40+";
+    case "pro master 40+":
+      return "Pro Master 40+";
     case "ma3":
     case "mixed amateur 3":
       return "Mixed Amateur 3";
@@ -71,41 +72,48 @@ const fetchAndGroupPlayers = async (
   const resultsByCategory: { [key: string]: any[] } = {};
 
   const response = await axios.get(url);
-  const subCompetitions = response.data?.Competition?.SubCompetitions;
-  if (!subCompetitions) {
-    throw new Error(`Brak danych Competition.SubCompetitions dla URL: ${url}`);
-  }
+  const competition = response.data?.Competition;
+  const subCompetitions = competition?.SubCompetitions;
+  const tourResults = competition?.TourResults;
 
-  subCompetitions.forEach((round: any) => {
-    round.Results.forEach((result: any) => {
-      const { Name, Sum, ClassName, DNF } = result;
+  const addResult = (result: any) => {
+    const { Name, Sum, ClassName, DNF } = result;
 
-      // Skip players with DNF - they don't participate in this round
-      if (DNF == 1) {
-        return;
-      }
+    // Skip players with DNF - they don't participate in this round
+    if (DNF == 1) {
+      return;
+    }
 
-      const categoryName = normalizeCategoryName(ClassName);
+    const categoryName = normalizeCategoryName(ClassName);
 
-      if (!resultsByCategory[categoryName]) {
-        resultsByCategory[categoryName] = [];
-      }
+    if (!resultsByCategory[categoryName]) {
+      resultsByCategory[categoryName] = [];
+    }
 
-      const existingPlayer = resultsByCategory[categoryName].find(
-        (player) => player.name === Name
-      );
+    const existingPlayer = resultsByCategory[categoryName].find(
+      (player) => player.name === Name
+    );
 
-      if (existingPlayer) {
-        existingPlayer.roundScore += Sum;
-      } else {
-        resultsByCategory[categoryName].push({
-          name: Name,
-          category: categoryName,
-          roundScore: Sum,
-        });
-      }
+    if (existingPlayer) {
+      existingPlayer.roundScore += Sum;
+    } else {
+      resultsByCategory[categoryName].push({
+        name: Name,
+        category: categoryName,
+        roundScore: Sum,
+      });
+    }
+  };
+
+  if (Array.isArray(subCompetitions) && subCompetitions.length > 0) {
+    subCompetitions.forEach((round: any) => {
+      round.Results.forEach(addResult);
     });
-  });
+  } else if (Array.isArray(tourResults) && tourResults.length > 0) {
+    tourResults.forEach(addResult);
+  } else {
+    throw new Error(`Brak danych wyników dla URL: ${url}`);
+  }
 
   Object.keys(resultsByCategory).forEach((category) => {
     const players = resultsByCategory[category];
