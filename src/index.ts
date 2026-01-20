@@ -34,6 +34,35 @@ const assignPoints = (players: Player[], pointsByPlace?: number[]) => {
   });
 };
 
+const normalizeCategoryName = (rawName?: string) => {
+  if (!rawName) {
+    return "Unknown";
+  }
+
+  const normalized = rawName.toLowerCase().replace(/\s+/g, " ").trim();
+  switch (normalized) {
+    case "mpo":
+    case "pro open":
+      return "Pro Open";
+    case "fpo":
+    case "pro open women":
+    case "women's pro open":
+      return "Women's Pro Open";
+    case "mp40":
+    case "mixed pro 40+":
+    case "pro masters 40+":
+      return "Mixed Pro 40+";
+    case "ma3":
+    case "mixed amateur 3":
+      return "Mixed Amateur 3";
+    case "ma4":
+    case "mixed amateur 4":
+      return "Mixed Amateur 4";
+    default:
+      return rawName;
+  }
+};
+
 const fetchAndGroupPlayers = async (
   url: string,
   roundNum: number,
@@ -42,7 +71,10 @@ const fetchAndGroupPlayers = async (
   const resultsByCategory: { [key: string]: any[] } = {};
 
   const response = await axios.get(url);
-  const subCompetitions = response.data.Competition.SubCompetitions;
+  const subCompetitions = response.data?.Competition?.SubCompetitions;
+  if (!subCompetitions) {
+    throw new Error(`Brak danych Competition.SubCompetitions dla URL: ${url}`);
+  }
 
   subCompetitions.forEach((round: any) => {
     round.Results.forEach((result: any) => {
@@ -53,20 +85,22 @@ const fetchAndGroupPlayers = async (
         return;
       }
 
-      if (!resultsByCategory[ClassName]) {
-        resultsByCategory[ClassName] = [];
+      const categoryName = normalizeCategoryName(ClassName);
+
+      if (!resultsByCategory[categoryName]) {
+        resultsByCategory[categoryName] = [];
       }
 
-      const existingPlayer = resultsByCategory[ClassName].find(
+      const existingPlayer = resultsByCategory[categoryName].find(
         (player) => player.name === Name
       );
 
       if (existingPlayer) {
         existingPlayer.roundScore += Sum;
       } else {
-        resultsByCategory[ClassName].push({
+        resultsByCategory[categoryName].push({
           name: Name,
-          category: ClassName,
+          category: categoryName,
           roundScore: Sum,
         });
       }
@@ -91,17 +125,8 @@ const parsePDGAData = (
 ) => {
   const resultsByCategory: { [key: string]: any[] } = {};
   
-  // Map PDGA category codes to our category names
-  const categoryMap: { [key: string]: string } = {
-    "MPO": "Pro Open",
-    "FPO": "Women's Pro Open",
-    "MP40": "Mixed Pro 40+",
-    "MA3": "Mixed Amateur 3",
-    "MA4": "Mixed Amateur 4"
-  };
-
   pdgaData.categories.forEach((category: any) => {
-    const categoryName = categoryMap[category.code] || category.name;
+    const categoryName = normalizeCategoryName(category.code || category.name);
     
     if (!resultsByCategory[categoryName]) {
       resultsByCategory[categoryName] = [];
@@ -279,7 +304,8 @@ app.get("/results-crl-vol1", async (req, res) => {
     res.json(finalResults);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Error processing results");
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).send(`Error processing results: ${message}`);
   }
 });
 
@@ -463,7 +489,8 @@ app.get("/results-crl-vol2", async (req, res) => {
     res.json(finalResults);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Error processing results");
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).send(`Error processing results: ${message}`);
   }
 });
 app.get("/results-crl-vol3", async (req, res) => {
