@@ -365,7 +365,7 @@ app.get("/results-crl-vol2", async (req, res) => {
       },
       {
         "code": "FPO",
-        "name": "Women's Pro Open",
+        "name": "Pro Open Woman",
         "results": [
           { "place": 1, "players": [{ "name": "Barbara Miłosz", "pdga": 235599, "rating": 803, "score_relative": 24, "rounds": [71, 71], "total": 142, "points": 9.0 }] },
           { "place": 2, "players": [{ "name": "Beata Masłowska", "pdga": 280593, "rating": null, "score_relative": 25, "rounds": [76, 67], "total": 143, "points": 6.0 }] },
@@ -374,7 +374,7 @@ app.get("/results-crl-vol2", async (req, res) => {
       },
       {
         "code": "MP40",
-        "name": "Mixed Pro 40+",
+        "name": "Pro Masters 40+",
         "results": [
           { "place": 1, "players": [{ "name": "Marcin Harabin", "pdga": 161877, "rating": 865, "score_relative": 3, "rounds": [60, 61], "total": 121, "points": 40.0 }] },
           { "place": 2, "players": [{ "name": "Mateusz Marciniak", "pdga": 188409, "rating": 870, "score_relative": 5, "rounds": [62, 61], "total": 123, "points": 36.0 }] },
