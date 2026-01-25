@@ -665,7 +665,7 @@ app.get("/results-crl-vol4", async (req, res) => {
     "https://discgolfmetrix.com/api.php?content=result&id=3504758", // round1
     "https://discgolfmetrix.com/api.php?content=result&id=3505237", // round2
     "https://discgolfmetrix.com/api.php?content=result&id=3516449", // round3
-    // round4 - to be added
+    "https://discgolfmetrix.com/api.php?content=result&id=3526288", // round4
     // round5 - to be added
     // round6 - to be added
     // round7 - to be added
