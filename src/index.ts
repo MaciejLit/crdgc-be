@@ -133,7 +133,6 @@ const fetchAndGroupPlayers = async (
   const addResult = (result: any) => {
     const { Name, Sum, ClassName, DNF } = result;
 
-    // Skip players with DNF - they don't participate in this round
     if (DNF == 1) {
       return;
     }
@@ -194,11 +193,8 @@ const parsePDGAData = (
       resultsByCategory[categoryName] = [];
     }
 
-    // Process each result (place) in the category
     category.results.forEach((result: any) => {
-      // Process each player at this place
       result.players.forEach((player: any) => {
-        // Use the total score for point assignment
         resultsByCategory[categoryName].push({
           name: player.name,
           category: categoryName,
@@ -208,7 +204,6 @@ const parsePDGAData = (
     });
   });
 
-  // Assign points based on scores within each category
   Object.keys(resultsByCategory).forEach((category) => {
     const players = resultsByCategory[category];
     assignPoints(players, pointsByPlace);
@@ -228,13 +223,10 @@ const fetchAndProcessResults = async (
   for (let roundNum = 1; roundNum <= roundUrls.length; roundNum++) {
     const roundData = roundUrls[roundNum - 1];
     
-    // Check if it's a PDGA JSON object or a URL string
     if (typeof roundData === 'string') {
-      // It's a URL - fetch from discgolfmetrix
       const roundResults = await fetchAndGroupPlayers(roundData, roundNum, pointsByPlace);
       combinedResults.push(roundResults);
     } else {
-      // It's a PDGA JSON object
       const roundResults = parsePDGAData(roundData, roundNum, pointsByPlace);
       combinedResults.push(roundResults);
     }
@@ -299,7 +291,6 @@ const mergeResults = (combinedResults: any[]) => {
     const playersInCategory = resultsByCategory[category];
 
     playersInCategory.forEach((player) => {
-      // Collect all round points, filter out null values, sort descending, and take top 4
       const allPoints = [
         player.points1,
         player.points2,
@@ -309,11 +300,8 @@ const mergeResults = (combinedResults: any[]) => {
         player.points6,
         player.points7
       ].filter((points): points is number => points !== null && points !== undefined);
-      
-      // Sort in descending order and take top 4
+
       const top4Points = allPoints.sort((a, b) => b - a).slice(0, 4);
-      
-      // Sum the top 4 rounds
       player.totalPoints = top4Points.reduce((sum, points) => sum + points, 0);
     });
 
@@ -351,7 +339,6 @@ const fetchTournamentPlacings = async (tournamentId: string) => {
       return;
     }
 
-    // Skip players with DNF - they don't participate in this round
     if (DNF == 1) {
       return;
     }
@@ -398,7 +385,6 @@ const fetchTournamentPlacings = async (tournamentId: string) => {
   return placings;
 };
 
-// Express app
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -412,16 +398,15 @@ const getVol12PointsByPlace = (maxPlaces: number) => {
   return points;
 };
 
-// Define routes
 app.get("/results-crl-vol1", async (req, res) => {
   const pointsByPlace = getVol12PointsByPlace(100);
   const roundUrls = [
-    "https://discgolfmetrix.com/api.php?content=result&id=2420358", // round1
-    "https://discgolfmetrix.com/api.php?content=result&id=2428643", // round2
-    "https://discgolfmetrix.com/api.php?content=result&id=2442153", // round3
-    "https://discgolfmetrix.com/api.php?content=result&id=2448578", // round4
-    "https://discgolfmetrix.com/api.php?content=result&id=2455733", // round5
-    "https://discgolfmetrix.com/api.php?content=result&id=2540142", // round6
+    "https://discgolfmetrix.com/api.php?content=result&id=2420358",
+    "https://discgolfmetrix.com/api.php?content=result&id=2428643",
+    "https://discgolfmetrix.com/api.php?content=result&id=2442153",
+    "https://discgolfmetrix.com/api.php?content=result&id=2448578",
+    "https://discgolfmetrix.com/api.php?content=result&id=2455733",
+    "https://discgolfmetrix.com/api.php?content=result&id=2540142",
   ];
 
   try {
@@ -601,12 +586,12 @@ app.get("/results-crl-vol2", async (req, res) => {
   };
 
   const roundUrls = [
-    "https://discgolfmetrix.com/api.php?content=result&id=2808611", // round1
-    "https://discgolfmetrix.com/api.php?content=result&id=2819390", // round2
-    "https://discgolfmetrix.com/api.php?content=result&id=2827141", // round3
-    "https://discgolfmetrix.com/api.php?content=result&id=2828772", // round4
-    "https://discgolfmetrix.com/api.php?content=result&id=2832353", // round5
-    round6PDGAData, // round6 (manual)
+    "https://discgolfmetrix.com/api.php?content=result&id=2808611",
+    "https://discgolfmetrix.com/api.php?content=result&id=2819390",
+    "https://discgolfmetrix.com/api.php?content=result&id=2827141",
+    "https://discgolfmetrix.com/api.php?content=result&id=2828772",
+    "https://discgolfmetrix.com/api.php?content=result&id=2832353",
+    round6PDGAData,
   ];
 
   try {
@@ -760,12 +745,12 @@ app.get("/results-crl-vol3", async (req, res) => {
   };
 
   const roundUrls = [
-    "https://discgolfmetrix.com/api.php?content=result&id=3154647", // round1
-    "https://discgolfmetrix.com/api.php?content=result&id=3178736", // round2
-    "https://discgolfmetrix.com/api.php?content=result&id=3187008", // round3
-    "https://discgolfmetrix.com/api.php?content=result&id=3193913", // round4
-    "https://discgolfmetrix.com/api.php?content=result&id=3204719", // round5
-    round6PDGAData, // round6
+    "https://discgolfmetrix.com/api.php?content=result&id=3154647",
+    "https://discgolfmetrix.com/api.php?content=result&id=3178736",
+    "https://discgolfmetrix.com/api.php?content=result&id=3187008",
+    "https://discgolfmetrix.com/api.php?content=result&id=3193913",
+    "https://discgolfmetrix.com/api.php?content=result&id=3204719",
+    round6PDGAData,
   ];
 
   try {
@@ -780,10 +765,10 @@ app.get("/results-crl-vol3", async (req, res) => {
 
 app.get("/results-crl-vol4", async (req, res) => {
   const roundUrls = [
-    "https://discgolfmetrix.com/api.php?content=result&id=3504758", // round1
-    "https://discgolfmetrix.com/api.php?content=result&id=3505237", // round2
-    "https://discgolfmetrix.com/api.php?content=result&id=3516449", // round3
-    "https://discgolfmetrix.com/api.php?content=result&id=3526288", // round4
+    "https://discgolfmetrix.com/api.php?content=result&id=3504758",
+    "https://discgolfmetrix.com/api.php?content=result&id=3505237",
+    "https://discgolfmetrix.com/api.php?content=result&id=3516449",
+    "https://discgolfmetrix.com/api.php?content=result&id=3526288",
     // round5 - to be added
     // round6 - to be added
     // round7 - to be added
@@ -832,11 +817,9 @@ app.post("/crdgc-bag-tags", async (req, res) => {
   }
 });
 
-// Start server when running locally
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
 
-// Export the express app to be used by Vercel as a serverless function
 export default app;
