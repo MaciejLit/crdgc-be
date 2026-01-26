@@ -64,6 +64,60 @@ const normalizeCategoryName = (rawName?: string) => {
   }
 };
 
+const normalizePlayerName = (rawName?: string) => {
+  if (!rawName) {
+    return "";
+  }
+
+  return rawName
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const CRDGC_MEMBERS = [
+  "Jacek Ciechanowski",
+  "Sebastian Śleboda",
+  "Maciej Litwinienko",
+  "Kamil Karpała",
+  "Michał Księżuk",
+  "Michał Maciołek",
+  "Axel Starosta",
+  "Filip Górski",
+  "Paweł Cytryński",
+  "Mateusz Ukleja",
+  "Piotr Ratajewski",
+  "Tadeusz Maszewski",
+  "Paweł Słotwiński",
+  "Michał Malicki",
+  "Borys Dzielicki",
+  "Łukasz Kordys",
+  "Tomasz Skoracki",
+  "Kacper Szopieraj",
+  "Antoni Zakroczymski",
+  "Paweł Szwed",
+  "Jakub Kisielnicki",
+  "Jakub Kaczmarek",
+  "Przemysław Wojt",
+  "Bartosz Dworzecki",
+  "Kamil Piętka",
+  "Marek Niedbalski",
+  "Max Kuszak",
+  "Jakub Muszyński",
+  "Norbert Rutkowski",
+  "Dominik Szczygielski",
+  "Katarzyna Bobrowska",
+  "Michał Wachowiak",
+  "Jarosław Hnat",
+  "Mateusz Książkiewicz",
+  "Mikołaj Turek",
+  "Dominika Rzęsa",
+];
+
+const CRDGC_MEMBER_SET = new Set(CRDGC_MEMBERS.map(normalizePlayerName));
+
 const fetchAndGroupPlayers = async (
   url: string,
   roundNum: number,
@@ -281,9 +335,73 @@ const mergeResults = (combinedResults: any[]) => {
   return resultsByCategory;
 };
 
+const fetchTournamentPlacings = async (tournamentId: string) => {
+  const url = `https://discgolfmetrix.com/api.php?content=result&id=${tournamentId}`;
+  const response = await axios.get(url);
+  const competition = response.data?.Competition;
+  const subCompetitions = competition?.SubCompetitions;
+  const tourResults = competition?.TourResults;
+  const results = competition?.Results;
+
+  const resultsByPlayer: { [name: string]: { name: string; totalScore: number } } = {};
+
+  const addResult = (result: any) => {
+    const { Name, Sum, DNF } = result;
+    if (!Name) {
+      return;
+    }
+
+    // Skip players with DNF - they don't participate in this round
+    if (DNF == 1) {
+      return;
+    }
+
+    const sumValue = Number(Sum);
+    if (Number.isNaN(sumValue)) {
+      return;
+    }
+
+    if (!resultsByPlayer[Name]) {
+      resultsByPlayer[Name] = { name: Name, totalScore: 0 };
+    }
+
+    resultsByPlayer[Name].totalScore += sumValue;
+  };
+
+  if (Array.isArray(subCompetitions) && subCompetitions.length > 0) {
+    subCompetitions.forEach((round: any) => {
+      round.Results.forEach(addResult);
+    });
+  } else if (Array.isArray(tourResults) && tourResults.length > 0) {
+    tourResults.forEach(addResult);
+  } else if (Array.isArray(results) && results.length > 0) {
+    results.forEach(addResult);
+  } else {
+    throw new Error(`Brak danych wyników dla ID turnieju: ${tournamentId}`);
+  }
+
+  const allPlayers = Object.values(resultsByPlayer).sort(
+    (a, b) => a.totalScore - b.totalScore
+  );
+
+  let lastScore: number | undefined = undefined;
+  let lastPlace = 0;
+
+  const placings = allPlayers.map((player, index) => {
+    if (player.totalScore !== lastScore) {
+      lastPlace = index + 1;
+    }
+    lastScore = player.totalScore;
+    return { ...player, place: lastPlace };
+  });
+
+  return placings;
+};
+
 // Express app
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 const getVol12PointsByPlace = (maxPlaces: number) => {
   const points: number[] = [100, 95, 90, 85, 80, 75, 70, 65, 60, 55];
@@ -678,6 +796,39 @@ app.get("/results-crl-vol4", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Error processing results");
+  }
+});
+
+app.post("/crdgc-bag-tags", async (req, res) => {
+  const tournamentId = String(
+    req.body?.tournamentId ?? req.body?.id ?? req.query?.tournamentId ?? req.query?.id ?? ""
+  ).trim();
+
+  if (!tournamentId) {
+    res.status(400).send("Missing tournamentId");
+    return;
+  }
+
+  try {
+    const placings = await fetchTournamentPlacings(tournamentId);
+    const membersPlacings = placings
+      .filter((player) => CRDGC_MEMBER_SET.has(normalizePlayerName(player.name)))
+      .map((player) => ({
+        name: player.name,
+        place: player.place,
+        totalScore: player.totalScore,
+      }));
+
+    res.json({
+      tournamentId,
+      totalPlayers: placings.length,
+      presentMembers: membersPlacings.length,
+      results: membersPlacings,
+    });
+  } catch (err) {
+    console.error(err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).send(`Error processing bag tags: ${message}`);
   }
 });
 
