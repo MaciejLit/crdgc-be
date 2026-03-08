@@ -479,6 +479,7 @@ const ROUND_URLS_VOL4 = [
   buildMetrixUrl("3516449"),
   buildMetrixUrl("3526288"),
   buildMetrixUrl("3530110"),
+  buildMetrixUrl("3534571"),
 ];
 
 app.get("/results-crl-vol4", async (req, res) => {
