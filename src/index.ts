@@ -248,18 +248,20 @@ const parsePDGAData = (
 
 const fetchAndProcessResults = async (
   roundUrls: (string | any)[],
-  pointsByPlace?: number[]
+  pointsByPlace?: number[],
+  roundPointsByPlace: Record<number, number[]> = {}
 ) => {
   const combinedResults: any[] = [];
 
   for (let roundNum = 1; roundNum <= roundUrls.length; roundNum++) {
     const roundData = roundUrls[roundNum - 1];
-    
+    const pointsForRound = roundPointsByPlace[roundNum - 1] ?? pointsByPlace;
+
     if (typeof roundData === "string") {
-      const roundResults = await fetchAndGroupPlayers(roundData, roundNum, pointsByPlace);
+      const roundResults = await fetchAndGroupPlayers(roundData, roundNum, pointsForRound);
       combinedResults.push(roundResults);
     } else {
-      const roundResults = parsePDGAData(roundData, roundNum, pointsByPlace);
+      const roundResults = parsePDGAData(roundData, roundNum, pointsForRound);
       combinedResults.push(roundResults);
     }
   }
@@ -267,7 +269,11 @@ const fetchAndProcessResults = async (
   return combinedResults;
 };
 
-const mergeResults = (combinedResults: any[], topRounds = 4) => {
+const mergeResults = (
+  combinedResults: any[],
+  topRounds = 4,
+  roundWeights: Record<number, number> = {}
+) => {
   const resultsByCategory: { [category: string]: any[] } = {};
 
   combinedResults.forEach((roundResult, roundIndex) => {
@@ -323,7 +329,7 @@ const mergeResults = (combinedResults: any[], topRounds = 4) => {
     const playersInCategory = resultsByCategory[category];
 
     playersInCategory.forEach((player) => {
-      const allPoints = [
+      const roundPoints = [
         player.points1,
         player.points2,
         player.points3,
@@ -331,9 +337,19 @@ const mergeResults = (combinedResults: any[], topRounds = 4) => {
         player.points5,
         player.points6,
         player.points7
-      ].filter((points): points is number => points !== null && points !== undefined);
+      ];
 
-      const topPoints = allPoints.sort((a, b) => b - a).slice(0, topRounds);
+      const weightedPoints = roundPoints
+        .map((points, index) => {
+          if (points === null || points === undefined) {
+            return null;
+          }
+          const weight = roundWeights[index] ?? 1;
+          return points * weight;
+        })
+        .filter((points): points is number => points !== null && points !== undefined);
+
+      const topPoints = weightedPoints.sort((a, b) => b - a).slice(0, topRounds);
       player.totalPoints = topPoints.reduce((sum, points) => sum + points, 0);
     });
 
@@ -421,11 +437,24 @@ const getVol12PointsByPlace = (maxPlaces: number) => {
 const sendResultsResponse = async (
   res: express.Response,
   roundUrls: (string | any)[],
-  options?: { pointsByPlace?: number[]; topRounds?: number }
+  options?: {
+    pointsByPlace?: number[];
+    topRounds?: number;
+    roundWeights?: Record<number, number>;
+    roundPointsByPlace?: Record<number, number[]>;
+  }
 ) => {
   try {
-    const combinedResults = await fetchAndProcessResults(roundUrls, options?.pointsByPlace);
-    const finalResults = mergeResults(combinedResults, options?.topRounds ?? 4);
+    const combinedResults = await fetchAndProcessResults(
+      roundUrls,
+      options?.pointsByPlace,
+      options?.roundPointsByPlace ?? {}
+    );
+    const finalResults = mergeResults(
+      combinedResults,
+      options?.topRounds ?? 4,
+      options?.roundWeights ?? {}
+    );
     res.json(finalResults);
   } catch (err) {
     console.error(err);
@@ -435,6 +464,10 @@ const sendResultsResponse = async (
 };
 
 const VOL12_POINTS = getVol12PointsByPlace(100);
+const DEFAULT_POINTS = [
+  100, 85, 75, 70, 65, 60, 55, 50, 46, 42, 38, 34, 30, 27, 24, 21, 18, 15, 12, 10, 8, 6, 5, 4, 3, 2, 1
+];
+const VOL4_FINAL_POINTS = DEFAULT_POINTS.map((points) => points * 1.5);
 const ROUND_URLS_VOL1 = [
   buildMetrixUrl("2420358"),
   buildMetrixUrl("2428643"),
@@ -480,10 +513,14 @@ const ROUND_URLS_VOL4 = [
   buildMetrixUrl("3526288"),
   buildMetrixUrl("3530110"),
   buildMetrixUrl("3534571"),
+  buildMetrixUrl("3537636"),
 ];
 
 app.get("/results-crl-vol4", async (req, res) => {
-  await sendResultsResponse(res, ROUND_URLS_VOL4, { topRounds: 5 });
+  await sendResultsResponse(res, ROUND_URLS_VOL4, {
+    topRounds: 5,
+    roundPointsByPlace: { 6: VOL4_FINAL_POINTS },
+  });
 });
 
 app.post("/crdgc-bag-tags", async (req, res) => {
